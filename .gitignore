@@ -1,0 +1,26 @@
+# XAMPP / local files
+xampp/
+htdocs/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# PHP / Composer
+/vendor/
+
+# Logs
+*.log
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.temp
