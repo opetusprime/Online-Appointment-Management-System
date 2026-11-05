@@ -26,79 +26,130 @@ $search = trim($_GET['search'] ?? '');
 
 if (is_admin()) {
 
-    $sql = "
-        SELECT
-            a.appointment_id,
-            c.name,
-            c.contact_number,
-            c.user_id,
-            a.service,
-            a.appointment_date,
-            a.appointment_time,
-            s.status_name
-        FROM appointment a
-        INNER JOIN client c
-            ON a.client_id = c.client_id
-        INNER JOIN status s
-            ON a.status_id = s.status_id
-        WHERE
-            c.name LIKE ?
-            OR c.contact_number LIKE ?
-            OR a.service LIKE ?
-        ORDER BY
-            a.appointment_date ASC,
-            a.appointment_time ASC
-    ";
+    if ($search !== '') {
 
-    $stmt = $pdo->prepare($sql);
+        $search_value = '%' . $search . '%';
 
-    $search_value = '%' . $search . '%';
-
-    $stmt->execute([
-        $search_value,
-        $search_value,
-        $search_value
-    ]);
-
-} else {
-
-    $sql = "
-        SELECT
-            a.appointment_id,
-            c.name,
-            c.contact_number,
-            c.user_id,
-            a.service,
-            a.appointment_date,
-            a.appointment_time,
-            s.status_name
-        FROM appointment a
-        INNER JOIN client c
-            ON a.client_id = c.client_id
-        INNER JOIN status s
-            ON a.status_id = s.status_id
-        WHERE
-            c.user_id = ?
-            AND (
+        $stmt = $pdo->prepare(
+            "SELECT
+                a.appointment_id,
+                c.name,
+                c.contact_number,
+                c.user_id,
+                a.service,
+                a.appointment_date,
+                a.appointment_time,
+                s.status_name
+             FROM appointment a
+             INNER JOIN client c
+                ON a.client_id = c.client_id
+             INNER JOIN status s
+                ON a.status_id = s.status_id
+             WHERE
                 c.name LIKE ?
                 OR c.contact_number LIKE ?
                 OR a.service LIKE ?
-            )
-        ORDER BY
-            a.appointment_date ASC,
-            a.appointment_time ASC
-    ";
+             ORDER BY
+                a.appointment_date ASC,
+                a.appointment_time ASC"
+        );
 
-    $stmt = $pdo->prepare($sql);
+        $stmt->execute([
+            $search_value,
+            $search_value,
+            $search_value
+        ]);
 
-    $search_value = '%' . $search . '%';
+    } else {
 
-    $stmt->execute([
-        $_SESSION['user_id'],
-        $search_value,
-        $search_value,
-        $search_value
-    ]);
+        $stmt = $pdo->query(
+            "SELECT
+                a.appointment_id,
+                c.name,
+                c.contact_number,
+                c.user_id,
+                a.service,
+                a.appointment_date,
+                a.appointment_time,
+                s.status_name
+             FROM appointment a
+             INNER JOIN client c
+                ON a.client_id = c.client_id
+             INNER JOIN status s
+                ON a.status_id = s.status_id
+             ORDER BY
+                a.appointment_date ASC,
+                a.appointment_time ASC"
+        );
+    }
+
+} else {
+
+    if ($search !== '') {
+
+        $search_value = '%' . $search . '%';
+
+        $stmt = $pdo->prepare(
+            "SELECT
+                a.appointment_id,
+                c.name,
+                c.contact_number,
+                c.user_id,
+                a.service,
+                a.appointment_date,
+                a.appointment_time,
+                s.status_name
+             FROM appointment a
+             INNER JOIN client c
+                ON a.client_id = c.client_id
+             INNER JOIN status s
+                ON a.status_id = s.status_id
+             WHERE
+                c.user_id = ?
+                AND (
+                    c.name LIKE ?
+                    OR c.contact_number LIKE ?
+                    OR a.service LIKE ?
+                )
+             ORDER BY
+                a.appointment_date ASC,
+                a.appointment_time ASC"
+        );
+
+        $stmt->execute([
+            $_SESSION['user_id'],
+            $search_value,
+            $search_value,
+            $search_value
+        ]);
+
+    } else {
+
+        $stmt = $pdo->prepare(
+            "SELECT
+                a.appointment_id,
+                c.name,
+                c.contact_number,
+                c.user_id,
+                a.service,
+                a.appointment_date,
+                a.appointment_time,
+                s.status_name
+             FROM appointment a
+             INNER JOIN client c
+                ON a.client_id = c.client_id
+             INNER JOIN status s
+                ON a.status_id = s.status_id
+             WHERE c.user_id = ?
+             ORDER BY
+                a.appointment_date ASC,
+                a.appointment_time ASC"
+        );
+
+        $stmt->execute([
+            $_SESSION['user_id']
+        ]);
+    }
 }
 
 $appointments = $stmt->fetchAll();
@@ -157,6 +208,7 @@ require_once __DIR__ . '/../includes/header.php';
 
             </div>
 
+
             <div class="col-md-3 d-flex gap-2">
 
                 <button
@@ -165,6 +217,7 @@ require_once __DIR__ . '/../includes/header.php';
                 >
                     Search
                 </button>
+
 
                 <?php if ($search !== ''): ?>
 
