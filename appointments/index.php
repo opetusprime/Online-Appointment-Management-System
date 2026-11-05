@@ -3,157 +3,6 @@ require_once __DIR__ . '/../includes/auth.php';
 require_login();
 require_once __DIR__ . '/../config/database.php';
 
-/*
- * =========================================
- * SEARCH
- * =========================================
- */
-
-$search = trim($_GET['search'] ?? '');
-
-
-/*
- * =========================================
- * GET APPOINTMENTS
- * =========================================
- *
- * ADMIN:
- * Can see all appointments.
- *
- * CLIENT:
- * Can only see their own appointments.
- */
-
-if (is_admin()) {
-
-    if ($search !== '') {
-
-        $search_value = '%' . $search . '%';
-
-        $stmt = $pdo->prepare(
-            "SELECT
-                a.appointment_id,
-                c.name,
-                c.contact_number,
-                c.user_id,
-                a.service,
-                a.appointment_date,
-                a.appointment_time,
-                s.status_name
-             FROM appointment a
-             INNER JOIN client c
-                ON a.client_id = c.client_id
-             INNER JOIN status s
-                ON a.status_id = s.status_id
-             WHERE
-                c.name LIKE ?
-                OR c.contact_number LIKE ?
-                OR a.service LIKE ?
-             ORDER BY
-                a.appointment_date ASC,
-                a.appointment_time ASC"
-        );
-
-        $stmt->execute([
-            $search_value,
-            $search_value,
-            $search_value
-        ]);
-
-    } else {
-
-        $stmt = $pdo->query(
-            "SELECT
-                a.appointment_id,
-                c.name,
-                c.contact_number,
-                c.user_id,
-                a.service,
-                a.appointment_date,
-                a.appointment_time,
-                s.status_name
-             FROM appointment a
-             INNER JOIN client c
-                ON a.client_id = c.client_id
-             INNER JOIN status s
-                ON a.status_id = s.status_id
-             ORDER BY
-                a.appointment_date ASC,
-                a.appointment_time ASC"
-        );
-    }
-
-} else {
-
-    if ($search !== '') {
-
-        $search_value = '%' . $search . '%';
-
-        $stmt = $pdo->prepare(
-            "SELECT
-                a.appointment_id,
-                c.name,
-                c.contact_number,
-                c.user_id,
-                a.service,
-                a.appointment_date,
-                a.appointment_time,
-                s.status_name
-             FROM appointment a
-             INNER JOIN client c
-                ON a.client_id = c.client_id
-             INNER JOIN status s
-                ON a.status_id = s.status_id
-             WHERE
-                c.user_id = ?
-                AND (
-                    c.name LIKE ?
-                    OR c.contact_number LIKE ?
-                    OR a.service LIKE ?
-                )
-             ORDER BY
-                a.appointment_date ASC,
-                a.appointment_time ASC"
-        );
-
-        $stmt->execute([
-            $_SESSION['user_id'],
-            $search_value,
-            $search_value,
-            $search_value
-        ]);
-
-    } else {
-
-        $stmt = $pdo->prepare(
-            "SELECT
-                a.appointment_id,
-                c.name,
-                c.contact_number,
-                c.user_id,
-                a.service,
-                a.appointment_date,
-                a.appointment_time,
-                s.status_name
-             FROM appointment a
-             INNER JOIN client c
-                ON a.client_id = c.client_id
-             INNER JOIN status s
-                ON a.status_id = s.status_id
-             WHERE c.user_id = ?
-             ORDER BY
-                a.appointment_date ASC,
-                a.appointment_time ASC"
-        );
-
-        $stmt->execute([
-            $_SESSION['user_id']
-        ]);
-    }
-}
-
-$appointments = $stmt->fetchAll();
-
 $page_title = 'Appointments';
 
 require_once __DIR__ . '/../includes/header.php';
@@ -173,7 +22,7 @@ require_once __DIR__ . '/../includes/header.php';
         </h2>
 
         <p class="text-muted mb-0">
-            <?= count($appointments) ?> appointment(s)
+            <span id="appointmentCount">0</span> appointment(s)
         </p>
 
     </div>
@@ -187,54 +36,22 @@ require_once __DIR__ . '/../includes/header.php';
 
 
 <!-- =========================================
-     SEARCH
+     LIVE SEARCH
 ========================================= -->
 
 <div class="card p-3 mb-4">
 
-    <form method="GET">
+    <div class="position-relative">
 
-        <div class="row g-2">
+        <input
+            type="text"
+            id="searchInput"
+            class="form-control"
+            placeholder="Search by client name, contact number, or service..."
+            autocomplete="off"
+        >
 
-            <div class="col-md-9">
-
-                <input
-                    type="text"
-                    name="search"
-                    class="form-control"
-                    placeholder="Search by client name, contact number, or service..."
-                    value="<?= htmlspecialchars($search) ?>"
-                >
-
-            </div>
-
-
-            <div class="col-md-3 d-flex gap-2">
-
-                <button
-                    type="submit"
-                    class="btn btn-primary w-100"
-                >
-                    Search
-                </button>
-
-
-                <?php if ($search !== ''): ?>
-
-                    <a
-                        href="index.php"
-                        class="btn btn-outline-secondary w-100"
-                    >
-                        Clear
-                    </a>
-
-                <?php endif; ?>
-
-            </div>
-
-        </div>
-
-    </form>
+    </div>
 
 </div>
 
@@ -272,134 +89,18 @@ require_once __DIR__ . '/../includes/header.php';
 
             </thead>
 
-
-            <tbody>
-
-            <?php if (!$appointments): ?>
+            <tbody id="appointmentTable">
 
                 <tr>
 
                     <td
                         colspan="<?= is_admin() ? '8' : '6' ?>"
-                        class="text-center text-muted"
+                        class="text-center text-muted py-4"
                     >
-
-                        <?php if ($search !== ''): ?>
-
-                            No appointments found for
-                            "<strong><?= htmlspecialchars($search) ?></strong>".
-
-                        <?php else: ?>
-
-                            No appointments found.
-
-                        <?php endif; ?>
-
+                        Loading appointments...
                     </td>
 
                 </tr>
-
-
-            <?php else: ?>
-
-                <?php foreach ($appointments as $a): ?>
-
-                    <tr>
-
-                        <td>
-                            <?= htmlspecialchars($a['appointment_id']) ?>
-                        </td>
-
-
-                        <?php if (is_admin()): ?>
-
-                            <td>
-                                <?= htmlspecialchars($a['name']) ?>
-                            </td>
-
-                            <td>
-                                <?= htmlspecialchars($a['contact_number']) ?>
-                            </td>
-
-                        <?php endif; ?>
-
-
-                        <td>
-                            <?= htmlspecialchars($a['service']) ?>
-                        </td>
-
-
-                        <td>
-                            <?= htmlspecialchars($a['appointment_date']) ?>
-                        </td>
-
-
-                        <td>
-                            <?= htmlspecialchars(
-                                date(
-                                    'g:i A',
-                                    strtotime($a['appointment_time'])
-                                )
-                            ) ?>
-                        </td>
-
-
-                        <td>
-
-                            <span class="badge bg-<?=
-                                $a['status_name'] === 'Completed'
-                                    ? 'success'
-                                    : (
-                                        $a['status_name'] === 'Confirmed'
-                                            ? 'primary'
-                                            : 'warning text-dark'
-                                    )
-                            ?>">
-
-                                <?= htmlspecialchars($a['status_name']) ?>
-
-                            </span>
-
-                        </td>
-
-
-                        <td class="text-nowrap">
-
-                            <?php if (
-                                is_admin()
-                                ||
-                                (int)$a['user_id'] === (int)$_SESSION['user_id']
-                            ): ?>
-
-                                <a
-                                    href="edit.php?id=<?= $a['appointment_id'] ?>"
-                                    class="btn btn-sm btn-outline-primary"
-                                >
-                                    Edit
-                                </a>
-
-                            <?php endif; ?>
-
-
-                            <?php if (is_admin()): ?>
-
-                                <a
-                                    href="delete.php?id=<?= $a['appointment_id'] ?>"
-                                    class="btn btn-sm btn-outline-danger"
-                                    onclick="return confirm('Are you sure you want to delete this appointment?');"
-                                >
-                                    Delete
-                                </a>
-
-                            <?php endif; ?>
-
-                        </td>
-
-                    </tr>
-
-                <?php endforeach; ?>
-
-            <?php endif; ?>
 
             </tbody>
 
@@ -408,6 +109,96 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 
 </div>
+
+
+<!-- =========================================
+     LIVE SEARCH JAVASCRIPT
+========================================= -->
+
+<script>
+
+const searchInput = document.getElementById('searchInput');
+const appointmentTable = document.getElementById('appointmentTable');
+const appointmentCount = document.getElementById('appointmentCount');
+
+let searchTimer;
+
+
+/*
+ * =========================================
+ * LOAD APPOINTMENTS
+ * =========================================
+ */
+
+function loadAppointments() {
+
+    const search = searchInput.value.trim();
+
+    fetch('live_search.php?search=' + encodeURIComponent(search))
+        .then(response => response.text())
+        .then(data => {
+
+            appointmentTable.innerHTML = data;
+
+            /*
+             * Count table rows
+             */
+            const rows = appointmentTable.querySelectorAll(
+                'tr[data-appointment]'
+            );
+
+            appointmentCount.textContent = rows.length;
+
+        })
+        .catch(error => {
+
+            console.error(error);
+
+            appointmentTable.innerHTML = `
+                <tr>
+                    <td
+                        colspan="<?= is_admin() ? '8' : '6' ?>"
+                        class="text-center text-danger py-4"
+                    >
+                        Unable to load appointments.
+                    </td>
+                </tr>
+            `;
+
+            appointmentCount.textContent = '0';
+
+        });
+}
+
+
+/*
+ * =========================================
+ * SEARCH WHILE TYPING
+ * =========================================
+ */
+
+searchInput.addEventListener('input', function () {
+
+    clearTimeout(searchTimer);
+
+    searchTimer = setTimeout(function () {
+
+        loadAppointments();
+
+    }, 200);
+
+});
+
+
+/*
+ * =========================================
+ * LOAD ALL APPOINTMENTS ON PAGE LOAD
+ * =========================================
+ */
+
+loadAppointments();
+
+</script>
 
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
