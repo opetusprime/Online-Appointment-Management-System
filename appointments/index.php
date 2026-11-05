@@ -5,6 +5,15 @@ require_once __DIR__ . '/../config/database.php';
 
 /*
  * =========================================
+ * SEARCH
+ * =========================================
+ */
+
+$search = trim($_GET['search'] ?? '');
+
+
+/*
+ * =========================================
  * GET APPOINTMENTS
  * =========================================
  *
@@ -17,8 +26,8 @@ require_once __DIR__ . '/../config/database.php';
 
 if (is_admin()) {
 
-    $stmt = $pdo->query(
-        "SELECT
+    $sql = "
+        SELECT
             a.appointment_id,
             c.name,
             c.contact_number,
@@ -27,20 +36,34 @@ if (is_admin()) {
             a.appointment_date,
             a.appointment_time,
             s.status_name
-         FROM appointment a
-         INNER JOIN client c
+        FROM appointment a
+        INNER JOIN client c
             ON a.client_id = c.client_id
-         INNER JOIN status s
+        INNER JOIN status s
             ON a.status_id = s.status_id
-         ORDER BY
+        WHERE
+            c.name LIKE ?
+            OR c.contact_number LIKE ?
+            OR a.service LIKE ?
+        ORDER BY
             a.appointment_date ASC,
-            a.appointment_time ASC"
-    );
+            a.appointment_time ASC
+    ";
+
+    $stmt = $pdo->prepare($sql);
+
+    $search_value = '%' . $search . '%';
+
+    $stmt->execute([
+        $search_value,
+        $search_value,
+        $search_value
+    ]);
 
 } else {
 
-    $stmt = $pdo->prepare(
-        "SELECT
+    $sql = "
+        SELECT
             a.appointment_id,
             c.name,
             c.contact_number,
@@ -49,19 +72,32 @@ if (is_admin()) {
             a.appointment_date,
             a.appointment_time,
             s.status_name
-         FROM appointment a
-         INNER JOIN client c
+        FROM appointment a
+        INNER JOIN client c
             ON a.client_id = c.client_id
-         INNER JOIN status s
+        INNER JOIN status s
             ON a.status_id = s.status_id
-         WHERE c.user_id = ?
-         ORDER BY
+        WHERE
+            c.user_id = ?
+            AND (
+                c.name LIKE ?
+                OR c.contact_number LIKE ?
+                OR a.service LIKE ?
+            )
+        ORDER BY
             a.appointment_date ASC,
-            a.appointment_time ASC"
-    );
+            a.appointment_time ASC
+    ";
+
+    $stmt = $pdo->prepare($sql);
+
+    $search_value = '%' . $search . '%';
 
     $stmt->execute([
-        $_SESSION['user_id']
+        $_SESSION['user_id'],
+        $search_value,
+        $search_value,
+        $search_value
     ]);
 }
 
@@ -72,9 +108,15 @@ $page_title = 'Appointments';
 require_once __DIR__ . '/../includes/header.php';
 ?>
 
+
+<!-- =========================================
+     PAGE HEADER
+========================================= -->
+
 <div class="d-flex justify-content-between align-items-center mb-4">
 
     <div>
+
         <h2 class="fw-bold mb-1">
             Appointment List
         </h2>
@@ -82,13 +124,71 @@ require_once __DIR__ . '/../includes/header.php';
         <p class="text-muted mb-0">
             <?= count($appointments) ?> appointment(s)
         </p>
+
     </div>
+
 
     <a href="add.php" class="btn btn-primary">
         + Add Appointment
     </a>
 
 </div>
+
+
+<!-- =========================================
+     SEARCH
+========================================= -->
+
+<div class="card p-3 mb-4">
+
+    <form method="GET">
+
+        <div class="row g-2">
+
+            <div class="col-md-9">
+
+                <input
+                    type="text"
+                    name="search"
+                    class="form-control"
+                    placeholder="Search by client name, contact number, or service..."
+                    value="<?= htmlspecialchars($search) ?>"
+                >
+
+            </div>
+
+            <div class="col-md-3 d-flex gap-2">
+
+                <button
+                    type="submit"
+                    class="btn btn-primary w-100"
+                >
+                    Search
+                </button>
+
+                <?php if ($search !== ''): ?>
+
+                    <a
+                        href="index.php"
+                        class="btn btn-outline-secondary w-100"
+                    >
+                        Clear
+                    </a>
+
+                <?php endif; ?>
+
+            </div>
+
+        </div>
+
+    </form>
+
+</div>
+
+
+<!-- =========================================
+     APPOINTMENT TABLE
+========================================= -->
 
 <div class="card p-3">
 
@@ -97,6 +197,7 @@ require_once __DIR__ . '/../includes/header.php';
         <table class="table table-hover align-middle">
 
             <thead>
+
                 <tr>
 
                     <th>ID</th>
@@ -115,7 +216,9 @@ require_once __DIR__ . '/../includes/header.php';
                     <th>Action</th>
 
                 </tr>
+
             </thead>
+
 
             <tbody>
 
@@ -127,10 +230,22 @@ require_once __DIR__ . '/../includes/header.php';
                         colspan="<?= is_admin() ? '8' : '6' ?>"
                         class="text-center text-muted"
                     >
-                        No appointments found.
+
+                        <?php if ($search !== ''): ?>
+
+                            No appointments found for
+                            "<strong><?= htmlspecialchars($search) ?></strong>".
+
+                        <?php else: ?>
+
+                            No appointments found.
+
+                        <?php endif; ?>
+
                     </td>
 
                 </tr>
+
 
             <?php else: ?>
 
@@ -141,6 +256,7 @@ require_once __DIR__ . '/../includes/header.php';
                         <td>
                             <?= htmlspecialchars($a['appointment_id']) ?>
                         </td>
+
 
                         <?php if (is_admin()): ?>
 
@@ -154,13 +270,16 @@ require_once __DIR__ . '/../includes/header.php';
 
                         <?php endif; ?>
 
+
                         <td>
                             <?= htmlspecialchars($a['service']) ?>
                         </td>
 
+
                         <td>
                             <?= htmlspecialchars($a['appointment_date']) ?>
                         </td>
+
 
                         <td>
                             <?= htmlspecialchars(
@@ -170,6 +289,7 @@ require_once __DIR__ . '/../includes/header.php';
                                 )
                             ) ?>
                         </td>
+
 
                         <td>
 
@@ -188,6 +308,7 @@ require_once __DIR__ . '/../includes/header.php';
                             </span>
 
                         </td>
+
 
                         <td class="text-nowrap">
 
@@ -234,5 +355,6 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 
 </div>
+
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
