@@ -298,29 +298,7 @@ require_once __DIR__ . '/includes/header.php';
     </div>
 
 
-    <!-- Search -->
-    <div class="col-md-6 col-lg-4">
 
-        <div class="card dashboard-card p-4 h-100">
-
-            <h4>
-                Search
-            </h4>
-
-            <p class="text-muted">
-                Find an appointment by name or keyword.
-            </p>
-
-            <a
-                href="/online-appointment-management-system/online-appointment/appointments/search.php"
-                class="btn btn-primary mt-auto"
-            >
-                Search
-            </a>
-
-        </div>
-
-    </div>
 
 
     <!-- Update Status -->
